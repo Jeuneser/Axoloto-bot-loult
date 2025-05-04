@@ -7,7 +7,7 @@ import random
 from collections import deque
 
 # === Configuration ===
-COOKIE = "lamanchette"
+COOKIE = "papo$"
 URI = "wss://loult.family/socket/cancer"
 LOG_FILE = "loultxt.txt"
 LYRICS_FILE = "lyrics.txt"
@@ -16,14 +16,14 @@ LYRICS3_FILE = "lyrics3.txt"  # Nouveau fichier pour lyrics3
 CACHE_SIZE = 20
 FLOOD_THRESHOLD = 6  # Nombre de messages en moins de 12 secondes pour appliquer un cooldown
 FLOOD_PAUSE_DURATION = 12  # Durée en secondes pour vérifier le flood
-LYRICS_INTERVAL = 60
-LYRICS2_INTERVAL = 90
+PERIODIC_MESSAGE_INTERVAL = 120  # Envoyer un message toutes les 2 minutes
 RESPONSE_DELAY = 0  # Pas de délai de réponse pour plus de réactivité
 BOT_USER_ID = "1"
 CONSECUTIVE_MESSAGES_LIMIT = 2  # Limite de messages consécutifs avant cooldown
 CONSECUTIVE_COOLDOWN = 0  # Pas de cooldown pour les messages consécutifs
 GLOBAL_COOLDOWN = 0  # Pas de cooldown global
 MESSAGE_COUNT_THRESHOLD = 610  # Nombre de messages avant d'envoyer une ligne aléatoire
+DICTIONARY_COOLDOWN = 0  # Pas de cooldown pour les réponses au dictionnaire
 
 # === Réponses automatiques ===
 replies = {
@@ -248,7 +248,7 @@ replies = {
     ("Ronflex",): "/atk ronflex",
     (":( ",): "même si t'es triste ai un bo sourir a l'exterieur'",
     ("a ben sa",): "t'es beau quand tu loult'",
-    ("yp",): "yp yp yp yp yp yp yp yp yp yp yp yp yp yp ",
+    ("yp",): "yp yp yp yp yp yp yp yp yp yp yp yp ",
     ("des",): "secse",
     ("ou",): "ou",
     ("au",): "au",
@@ -319,21 +319,13 @@ def load_lyrics():
     except Exception as e:
         print(f"[!] Erreur lors du chargement des lyrics3: {e}")
 
-# === Send Random Lyric ===
-def send_random_lyric(ws):
+# === Send Periodic Message ===
+def send_periodic_message(ws):
     while True:
-        if lyrics_lines and can_send_message():
+        if lyrics_lines:
             line = random.choice(lyrics_lines).strip()
             send_message(ws, line)
-        time.sleep(LYRICS_INTERVAL)
-
-# === Send Random Lyric2 ===
-def send_random_lyric2(ws):
-    while True:
-        if lyrics2_lines and can_send_message():
-            line = random.choice(lyrics2_lines).strip()
-            send_message(ws, line)
-        time.sleep(LYRICS2_INTERVAL * 2)  # Send every 180 seconds
+        time.sleep(PERIODIC_MESSAGE_INTERVAL)
 
 # === Send Message with Delay and Cooldown ===
 def send_message(ws, message):
@@ -370,6 +362,14 @@ def process_message(message):
         message = message.replace(smiley, emoji)
 
     return message
+
+# === Vérifier si un mot est dans les lyrics ===
+def is_word_in_lyrics(word):
+    word = word.lower()
+    for line in lyrics_lines + lyrics2_lines + lyrics3_lines:
+        if word in line.lower():
+            return line.strip()
+    return None
 
 # === Gestion des messages ===
 def on_message(ws, message):
@@ -451,6 +451,13 @@ def on_message(ws, message):
                 send_message(ws, "non, j'ai le droit de vivre ossiw")
             return
 
+        # Vérifier si un mot est dans les lyrics
+        for word in msg_lower.split():
+            lyric_line = is_word_in_lyrics(word)
+            if lyric_line:
+                send_message(ws, lyric_line)
+                return
+
         for triggers, response in replies.items():
             for trigger in triggers:
                 if re.search(rf'\b{re.escape(trigger)}\b', msg_lower):
@@ -459,14 +466,6 @@ def on_message(ws, message):
                         cache.append(msg_lower)
                         last_response = response
                     return
-
-        # Send a random lyric line every MESSAGE_COUNT_THRESHOLD messages
-        if message_count >= MESSAGE_COUNT_THRESHOLD:
-            all_lyrics = lyrics_lines + lyrics2_lines + lyrics3_lines
-            if all_lyrics:
-                line = random.choice(all_lyrics).strip()
-                send_message(ws, line)
-            message_count = 0  # Reset the message count
 
     except Exception as e:
         print(f"[!] Erreur on_message: {e}")
@@ -482,8 +481,7 @@ def on_close(ws, code, msg):
 
 def on_open(ws):
     print("[*] Connecté au serveur")
-    threading.Thread(target=send_random_lyric, args=(ws,)).start()
-    threading.Thread(target=send_random_lyric2, args=(ws,)).start()
+    threading.Thread(target=send_periodic_message, args=(ws,)).start()
 
 def reconnect_bot():
     threading.Thread(target=loult_bot).start()
