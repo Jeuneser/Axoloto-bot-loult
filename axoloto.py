@@ -16,7 +16,7 @@ LYRICS3_FILE = "lyrics3.txt"  # Nouveau fichier pour lyrics3
 CACHE_SIZE = 20
 FLOOD_THRESHOLD = 6  # Nombre de messages en moins de 12 secondes pour appliquer un cooldown
 FLOOD_PAUSE_DURATION = 12  # Durée en secondes pour vérifier le flood
-PERIODIC_MESSAGE_INTERVAL = 120  # Envoyer un message toutes les 2 minutes
+LYRICS_INTERVAL = 180  # Envoyer un lyrics toutes les 3 minutes
 RESPONSE_DELAY = 0  # Pas de délai de réponse pour plus de réactivité
 BOT_USER_ID = "1"
 CONSECUTIVE_MESSAGES_LIMIT = 2  # Limite de messages consécutifs avant cooldown
@@ -28,7 +28,7 @@ DICTIONARY_COOLDOWN = 0  # Pas de cooldown pour les réponses au dictionnaire
 # === Réponses automatiques ===
 replies = {
     ("we", "wee"): "&&we",
-    ("mort", "axoloto"): "nn tkt",
+    ("mort", "le  bot"): "ya pas de bot.",
     ("slt",): "Salut !",
     ("tu veut de la musique ?",): "écouter Hania Rani ou Yvete young!",
     ("pwe",): "pwe pwe pwe  !",
@@ -71,7 +71,7 @@ replies = {
     ("mdr",): "quoi, tu suce?",
     ("photo",): "ON VE LA PHOTO",
     ("spectrum",): "spctre c'est vraiment un bon bibw",
-    ("axoloto",): "je me fous juste de tagl",
+    ("Arcanin tu",): "je me fous juste de tagl",
     ("je suis nul",): "Dit pas sa bibwww",
     ("tu coupe",): "j'ai bu'",
     ("c nul",): "mec, je suis litérallement,toi.",
@@ -248,7 +248,7 @@ replies = {
     ("Ronflex",): "/atk ronflex",
     (":( ",): "même si t'es triste ai un bo sourir a l'exterieur'",
     ("a ben sa",): "t'es beau quand tu loult'",
-    ("yp",): "yp yp yp yp yp yp yp yp yp yp yp yp ",
+    ("yp",): "yp yp yp yp yp yp yp yp yp yp yp ",
     ("des",): "secse",
     ("ou",): "ou",
     ("au",): "au",
@@ -266,8 +266,8 @@ replies = {
     ("aya la",): "mais ayaaaa",
     ("Pas étonnant",): "tu m'étonne",
     ("t'as vu",): "a fond",
-    ("c'est gratuit",): "axoloto aime la gratuité",
-    ("gratuit",): "axo aime la gratuité",
+    ("c'est gratuit",): "arcanin aime la gratuité",
+    ("gratuit",): "jèm aime la gratuité",
     ("ils parlent",): "alors qu'ils parlent c chiens",
     ("MAITENANT",): "PK",
     ("TES",): "AHOU !!",
@@ -322,10 +322,11 @@ def load_lyrics():
 # === Send Periodic Message ===
 def send_periodic_message(ws):
     while True:
-        if lyrics_lines:
-            line = random.choice(lyrics_lines).strip()
+        if lyrics_lines or lyrics2_lines or lyrics3_lines:
+            all_lyrics = lyrics_lines + lyrics2_lines + lyrics3_lines
+            line = random.choice(all_lyrics).strip()
             send_message(ws, line)
-        time.sleep(PERIODIC_MESSAGE_INTERVAL)
+        time.sleep(LYRICS_INTERVAL)
 
 # === Send Message with Delay and Cooldown ===
 def send_message(ws, message):
@@ -422,42 +423,7 @@ def on_message(ws, message):
                 send_message(ws, word_to_repeat)
             return
 
-        if msg_lower.startswith("axo"):
-            if lyrics2_lines and can_send_message():
-                line = random.choice(lyrics2_lines).strip()
-                if msg_lower.startswith("axo tu pense quoi de"):
-                    send_message(ws, f"bah.. {line}")
-                else:
-                    send_message(ws, line)
-            return
-
-        if "axoloto" in msg_lower:
-            if lyrics_lines and can_send_message():
-                line = random.choice(lyrics_lines).strip()
-                suffix = random.choice([", voila", ", mec"])
-                send_message(ws, f"{line}{suffix}")
-            return
-
-        # Nouvelle condition pour "axolotw tu fais quoi"
-        if msg_lower == "axolotw tu fais quoi":
-            if lyrics3_lines and can_send_message():
-                line = random.choice(lyrics3_lines).strip()
-                send_message(ws, f"{line}, voila mec")
-            return
-
-        # Réponse pour "arret", "arrette", "arreté axoloto"
-        if any(word in msg_lower for word in ["arret", "arrette", "arreté axoloto"]):
-            if can_send_message():
-                send_message(ws, "non, j'ai le droit de vivre ossiw")
-            return
-
-        # Vérifier si un mot est dans les lyrics
-        for word in msg_lower.split():
-            lyric_line = is_word_in_lyrics(word)
-            if lyric_line:
-                send_message(ws, lyric_line)
-                return
-
+        # Check for dictionary responses
         for triggers, response in replies.items():
             for trigger in triggers:
                 if re.search(rf'\b{re.escape(trigger)}\b', msg_lower):
@@ -466,6 +432,13 @@ def on_message(ws, message):
                         cache.append(msg_lower)
                         last_response = response
                     return
+
+        # Vérifier si un mot est dans les lyrics
+        for word in msg_lower.split():
+            lyric_line = is_word_in_lyrics(word)
+            if lyric_line:
+                send_message(ws, lyric_line)
+                return
 
     except Exception as e:
         print(f"[!] Erreur on_message: {e}")
