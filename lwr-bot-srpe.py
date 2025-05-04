@@ -7,7 +7,7 @@ import random
 from collections import deque
 
 # === Configuration ===
-COOKIE = "papo$"
+COOKIE = "lamanchette"
 URI = "wss://loult.family/socket/cancer"
 LOG_FILE = "loultxt.txt"
 LYRICS_FILE = "lyrics.txt"
@@ -16,25 +16,21 @@ LYRICS3_FILE = "lyrics3.txt"  # Nouveau fichier pour lyrics3
 CACHE_SIZE = 20
 FLOOD_THRESHOLD = 6  # Nombre de messages en moins de 12 secondes pour appliquer un cooldown
 FLOOD_PAUSE_DURATION = 12  # Durée en secondes pour vérifier le flood
-LYRICS_INTERVAL = 180  # Envoyer un lyrics toutes les 3 minutes
+LYRICS_INTERVAL = 60
+LYRICS2_INTERVAL = 90
 RESPONSE_DELAY = 0  # Pas de délai de réponse pour plus de réactivité
 BOT_USER_ID = "1"
 CONSECUTIVE_MESSAGES_LIMIT = 2  # Limite de messages consécutifs avant cooldown
 CONSECUTIVE_COOLDOWN = 0  # Pas de cooldown pour les messages consécutifs
 GLOBAL_COOLDOWN = 0  # Pas de cooldown global
 MESSAGE_COUNT_THRESHOLD = 610  # Nombre de messages avant d'envoyer une ligne aléatoire
-DICTIONARY_COOLDOWN = 0  # Pas de cooldown pour les réponses au dictionnaire
 
 # === Réponses automatiques ===
 replies = {
     ("we", "wee"): "&&we",
-    ("mort", "le  bot"): "ya pas de bot.",
     ("slt",): "Salut !",
-    ("tu veut de la musique ?",): "écouter Hania Rani ou Yvete young!",
-    ("pwe",): "pwe pwe pwe  !",
     ("faire une sieste",): "pti sommeillennw",
     ("salut",): "t ki!",
-    ("seccs",): "secse army!",
     ("test",): "test&",
     ("attaquons",): "attaquons ne le je !",
     ("cc",): "cwe cwe nwe nwe rce!",
@@ -65,13 +61,10 @@ replies = {
     ("en pétant",): "isw",
     ("OH",): "OH OH OH",
     ("mdrrr",): "lol",
-    ("adieu",): "a demain",
-    ("c pas pd",): "full pd",
-    ("oh nn",): "onoonnw",
     ("mdr",): "quoi, tu suce?",
     ("photo",): "ON VE LA PHOTO",
     ("spectrum",): "spctre c'est vraiment un bon bibw",
-    ("Arcanin tu",): "je me fous juste de tagl",
+    ("axoloto",): "je me fous juste de tagl",
     ("je suis nul",): "Dit pas sa bibwww",
     ("tu coupe",): "j'ai bu'",
     ("c nul",): "mec, je suis litérallement,toi.",
@@ -176,8 +169,6 @@ replies = {
     ("onw",): "bibwwwwwww",
     ("ennw",): "ennw",
     ("oh",): "oh oh oh",
-    ("oh oh eh",): "eh",
-    ("che che che che",): "che che che che che che",
     ("nouveau",): "cnouveau? le loult ennw ? c le nouveau loult ennw",
     ("simulation",): "simulation holographique>simulation",
     ("bg",): "gros bg je dirais",
@@ -248,7 +239,7 @@ replies = {
     ("Ronflex",): "/atk ronflex",
     (":( ",): "même si t'es triste ai un bo sourir a l'exterieur'",
     ("a ben sa",): "t'es beau quand tu loult'",
-    ("yp",): "yp yp yp yp yp yp yp yp yp yp yp ",
+    ("yp",): "yp yp yp yp yp yp yp yp yp yp yp yp yp yp ",
     ("des",): "secse",
     ("ou",): "ou",
     ("au",): "au",
@@ -266,8 +257,8 @@ replies = {
     ("aya la",): "mais ayaaaa",
     ("Pas étonnant",): "tu m'étonne",
     ("t'as vu",): "a fond",
-    ("c'est gratuit",): "arcanin aime la gratuité",
-    ("gratuit",): "jèm aime la gratuité",
+    ("c'est gratuit",): "axoloto aime la gratuité",
+    ("gratuit",): "axo aime la gratuité",
     ("ils parlent",): "alors qu'ils parlent c chiens",
     ("MAITENANT",): "PK",
     ("TES",): "AHOU !!",
@@ -319,14 +310,21 @@ def load_lyrics():
     except Exception as e:
         print(f"[!] Erreur lors du chargement des lyrics3: {e}")
 
-# === Send Periodic Message ===
-def send_periodic_message(ws):
+# === Send Random Lyric ===
+def send_random_lyric(ws):
     while True:
-        if lyrics_lines or lyrics2_lines or lyrics3_lines:
-            all_lyrics = lyrics_lines + lyrics2_lines + lyrics3_lines
-            line = random.choice(all_lyrics).strip()
+        if lyrics_lines and can_send_message():
+            line = random.choice(lyrics_lines).strip()
             send_message(ws, line)
         time.sleep(LYRICS_INTERVAL)
+
+# === Send Random Lyric2 ===
+def send_random_lyric2(ws):
+    while True:
+        if lyrics2_lines and can_send_message():
+            line = random.choice(lyrics2_lines).strip()
+            send_message(ws, line)
+        time.sleep(LYRICS2_INTERVAL * 2)  # Send every 180 seconds
 
 # === Send Message with Delay and Cooldown ===
 def send_message(ws, message):
@@ -363,14 +361,6 @@ def process_message(message):
         message = message.replace(smiley, emoji)
 
     return message
-
-# === Vérifier si un mot est dans les lyrics ===
-def is_word_in_lyrics(word):
-    word = word.lower()
-    for line in lyrics_lines + lyrics2_lines + lyrics3_lines:
-        if word in line.lower():
-            return line.strip()
-    return None
 
 # === Gestion des messages ===
 def on_message(ws, message):
@@ -423,7 +413,35 @@ def on_message(ws, message):
                 send_message(ws, word_to_repeat)
             return
 
-        # Check for dictionary responses
+        if msg_lower.startswith("axo"):
+            if lyrics2_lines and can_send_message():
+                line = random.choice(lyrics2_lines).strip()
+                if msg_lower.startswith("axo tu pense quoi de"):
+                    send_message(ws, f"bah.. {line}")
+                else:
+                    send_message(ws, line)
+            return
+
+        if "axoloto" in msg_lower:
+            if lyrics_lines and can_send_message():
+                line = random.choice(lyrics_lines).strip()
+                suffix = random.choice([", voila", ", mec"])
+                send_message(ws, f"{line}{suffix}")
+            return
+
+        # Nouvelle condition pour "axolotw tu fais quoi"
+        if msg_lower == "axolotw tu fais quoi":
+            if lyrics3_lines and can_send_message():
+                line = random.choice(lyrics3_lines).strip()
+                send_message(ws, f"{line}, voila mec")
+            return
+
+        # Réponse pour "arret", "arrette", "arreté axoloto"
+        if any(word in msg_lower for word in ["arret", "arrette", "arreté axoloto"]):
+            if can_send_message():
+                send_message(ws, "non, j'ai le droit de vivre ossiw")
+            return
+
         for triggers, response in replies.items():
             for trigger in triggers:
                 if re.search(rf'\b{re.escape(trigger)}\b', msg_lower):
@@ -433,12 +451,13 @@ def on_message(ws, message):
                         last_response = response
                     return
 
-        # Vérifier si un mot est dans les lyrics
-        for word in msg_lower.split():
-            lyric_line = is_word_in_lyrics(word)
-            if lyric_line:
-                send_message(ws, lyric_line)
-                return
+        # Send a random lyric line every MESSAGE_COUNT_THRESHOLD messages
+        if message_count >= MESSAGE_COUNT_THRESHOLD:
+            all_lyrics = lyrics_lines + lyrics2_lines + lyrics3_lines
+            if all_lyrics:
+                line = random.choice(all_lyrics).strip()
+                send_message(ws, line)
+            message_count = 0  # Reset the message count
 
     except Exception as e:
         print(f"[!] Erreur on_message: {e}")
@@ -454,7 +473,8 @@ def on_close(ws, code, msg):
 
 def on_open(ws):
     print("[*] Connecté au serveur")
-    threading.Thread(target=send_periodic_message, args=(ws,)).start()
+    threading.Thread(target=send_random_lyric, args=(ws,)).start()
+    threading.Thread(target=send_random_lyric2, args=(ws,)).start()
 
 def reconnect_bot():
     threading.Thread(target=loult_bot).start()
