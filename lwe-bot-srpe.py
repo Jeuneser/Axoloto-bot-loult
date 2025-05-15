@@ -12,18 +12,18 @@ URI = "wss://loult.family/socket/cancer"
 LOG_FILE = "loultxt.txt"
 LYRICS_FILE = "lyrics.txt"
 LYRICS2_FILE = "lyrics2.txt"
-LYRICS3_FILE = "lyrics3.txt"  # Nouveau fichier pour lyrics3
+LYRICS3_FILE = "lyrics3.txt"
 CACHE_SIZE = 20
-FLOOD_THRESHOLD = 6  # Nombre de messages en moins de 12 secondes pour appliquer un cooldown
-FLOOD_PAUSE_DURATION = 12  # Durée en secondes pour vérifier le flood
+FLOOD_THRESHOLD = 6
+FLOOD_PAUSE_DURATION = 12
 LYRICS_INTERVAL = 60
 LYRICS2_INTERVAL = 90
-RESPONSE_DELAY = 0  # Pas de délai de réponse pour plus de réactivité
+RESPONSE_DELAY = 0
 BOT_USER_ID = "1"
-CONSECUTIVE_MESSAGES_LIMIT = 2  # Limite de messages consécutifs avant cooldown
-CONSECUTIVE_COOLDOWN = 0  # Pas de cooldown pour les messages consécutifs
-GLOBAL_COOLDOWN = 0  # Pas de cooldown global
-MESSAGE_COUNT_THRESHOLD = 610  # Nombre de messages avant d'envoyer une ligne aléatoire
+CONSECUTIVE_MESSAGES_LIMIT = 2
+CONSECUTIVE_COOLDOWN = 0
+GLOBAL_COOLDOWN = 0
+MESSAGE_COUNT_THRESHOLD = 610
 
 # === Réponses automatiques ===
 replies = {
@@ -272,11 +272,11 @@ replies = {
 cache = deque(maxlen=CACHE_SIZE)
 message_timestamps = deque()
 last_response = None
-consecutive_message_count = 0  # Compteur pour les messages consécutifs
-last_message_time = 0  # Variable pour suivre le dernier message envoyé
-last_repeated_message = ""  # Variable pour suivre le dernier message répété
-global_cooldown_time = 0  # Variable pour suivre le cooldown global
-message_count = 0  # Compteur pour le nombre de messages reçus
+consecutive_message_count = 0
+last_message_time = 0
+last_repeated_message = ""
+global_cooldown_time = 0
+message_count = 0
 
 # === Logger ===
 def log_message(msg):
@@ -324,20 +324,20 @@ def send_random_lyric2(ws):
         if lyrics2_lines and can_send_message():
             line = random.choice(lyrics2_lines).strip()
             send_message(ws, line)
-        time.sleep(LYRICS2_INTERVAL * 2)  # Send every 180 seconds
+        time.sleep(LYRICS2_INTERVAL * 2)
 
 # === Send Message with Delay and Cooldown ===
 def send_message(ws, message):
     global consecutive_message_count, last_message_time, last_repeated_message, global_cooldown_time
     if can_send_message():
-        print(f"[Sending Message] {message}")  # Debug print
+        print(f"[Sending Message] {message}")
         ws.send(json.dumps({"type": "msg", "msg": message}))
         consecutive_message_count += 1
-        last_message_time = time.time()  # Mettre à jour le dernier message envoyé
-        global_cooldown_time = time.time()  # Mettre à jour le cooldown global
+        last_message_time = time.time()
+        global_cooldown_time = time.time()
         if consecutive_message_count >= CONSECUTIVE_MESSAGES_LIMIT:
-            consecutive_message_count = 0  # Réinitialiser le compteur après cooldown
-        last_repeated_message = message  # Mettre à jour le dernier message répété
+            consecutive_message_count = 0
+        last_repeated_message = message
 
 def can_send_message():
     global consecutive_message_count, last_message_time, global_cooldown_time
@@ -347,15 +347,12 @@ def can_send_message():
 
 # === Traitement des liens YouTube et des smileys ===
 def process_message(message):
-    # Détecter les liens YouTube
     youtube_pattern = r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?(?P<id>[A-Za-z0-9_-]{11})'
     message = re.sub(youtube_pattern, r'[YouTube Video: \g<id>]', message)
 
-    # Détecter les smileys
     smileys = {
         ":)": "😊",
         ":(": "😞",
-        # Ajoutez d'autres smileys ici
     }
     for smiley, emoji in smileys.items():
         message = message.replace(smiley, emoji)
@@ -374,12 +371,10 @@ def on_message(ws, message):
         if not msg:
             return
 
-        # Traitez le message pour les liens YouTube et les smileys
         msg = process_message(msg)
 
         user_id = data.get("userid", "Unknown")[:6]
 
-        # Check if the message is from the bot itself
         if user_id == BOT_USER_ID:
             return
 
@@ -392,21 +387,17 @@ def on_message(ws, message):
         current_time = time.time()
         message_timestamps.append(current_time)
 
-        # Remove timestamps older than FLOOD_PAUSE_DURATION
         while message_timestamps and current_time - message_timestamps[0] > FLOOD_PAUSE_DURATION:
             message_timestamps.popleft()
 
-        # Check for flood
         if len(message_timestamps) > FLOOD_THRESHOLD:
             print("[!] Flood detected. Pausing for 12 seconds...")
             time.sleep(12)
             message_timestamps.clear()
             return
 
-        # Increment the message count
         message_count += 1
 
-        # Check for messages ending with '&' or '1' and repeat the word
         if msg_lower.endswith('&') or msg_lower.endswith('1'):
             word_to_repeat = msg_lower.rsplit(maxsplit=1)[0]
             if word_to_repeat and word_to_repeat != last_repeated_message and can_send_message():
@@ -429,14 +420,12 @@ def on_message(ws, message):
                 send_message(ws, f"{line}{suffix}")
             return
 
-        # Nouvelle condition pour "axolotw tu fais quoi"
         if msg_lower == "axolotw tu fais quoi":
             if lyrics3_lines and can_send_message():
                 line = random.choice(lyrics3_lines).strip()
                 send_message(ws, f"{line}, voila mec")
             return
 
-        # Réponse pour "arret", "arrette", "arreté axoloto"
         if any(word in msg_lower for word in ["arret", "arrette", "arreté axoloto"]):
             if can_send_message():
                 send_message(ws, "non, j'ai le droit de vivre ossiw")
@@ -451,13 +440,12 @@ def on_message(ws, message):
                         last_response = response
                     return
 
-        # Send a random lyric line every MESSAGE_COUNT_THRESHOLD messages
         if message_count >= MESSAGE_COUNT_THRESHOLD:
             all_lyrics = lyrics_lines + lyrics2_lines + lyrics3_lines
             if all_lyrics:
                 line = random.choice(all_lyrics).strip()
                 send_message(ws, line)
-            message_count = 0  # Reset the message count
+            message_count = 0
 
     except Exception as e:
         print(f"[!] Erreur on_message: {e}")
